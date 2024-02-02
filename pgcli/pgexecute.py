@@ -10,6 +10,7 @@ from psycopg.conninfo import make_conninfo
 import sqlparse
 
 from .packages.parseutils.meta import FunctionMetadata, ForeignKey
+from .packages.parseutils.explain import strip_explain
 
 _logger = logging.getLogger(__name__)
 
@@ -362,7 +363,7 @@ class PGExecute:
                 continue
             try:
                 if explain_mode:
-                    sql = self.explain_prefix() + sql
+                    sql = self.prepare_explain(sql)
                 elif pgspecial:
                     # \G is treated specially since we have to set the expanded output.
                     if sql.endswith("\\G"):
@@ -870,5 +871,15 @@ class PGExecute:
             for row in cur:
                 yield row[0]
 
-    def explain_prefix(self):
-        return "EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) "
+    def prepare_explain(self, sql):
+        """
+        Prepare query for explain mode.
+        Strips existing 'EXPLAIN...' section if required.
+
+        :param sql: string (single preformatted statement)
+        :return: string
+        """
+
+        # build final explain statement
+        prefix = "EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) "
+        return (prefix + strip_explain(sql))
